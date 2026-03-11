@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 from applications.models import Application
 from applications.models import AddressProof
 
-from applications.serializers.address_proof_serializer import AddressProofUploadSerializer
+from applications.serializers.address_proof_serializer import AddressProofSerializer
 from applications.services.decision_engine import evaluate_application
 
 
@@ -17,7 +17,7 @@ class UploadAddressProofView(APIView):
 
         application = get_object_or_404(Application, id=application_id)
 
-        serializer = AddressProofUploadSerializer(data=request.data)
+        serializer = AddressProofSerializer(data=request.data)
 
         if serializer.is_valid():
 
