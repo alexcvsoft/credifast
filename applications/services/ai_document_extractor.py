@@ -1,61 +1,66 @@
 import json
-import requests
 import logging
-import time
-from google import genai
-from google.genai import errors
+import requests
 from django.conf import settings
-from datetime import datetime
+from google import genai
+from google.genai import types
 
 logger = logging.getLogger(__name__)
 
 class AIDocumentExtractor:
-    
     @staticmethod
     def extract_document_data(file_url: str) -> dict:
-        client = genai.Client(
-            api_key=settings.GEMINI_API_KEY,
-            http_options={'api_version': 'v1'}
-        )
-        
-        # El modelo que confirmamos que funciona en tu cuenta
-        MODEL_NAME = "gemini-2.0-flash-lite"
+        client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        # Usamos el modelo que confirmaste que funciona
+        MODEL_NAME = "gemini-2.5-flash-lite"
 
         try:
-            # 1. Descargar el documento
             response = requests.get(file_url, timeout=15)
             response.raise_for_status()
             
+            # Reforzamos el prompt para que no use Markdown
             prompt = """
-            Analiza este comprobante de domicilio. 
-            Extrae y devuelve ÚNICAMENTE un JSON con:
+            Analiza esta imagen de un comprobante de domicilio.
+            Extrae los datos y responde ÚNICAMENTE con el objeto JSON, sin bloques de código, sin ```json, sin texto adicional.
+            Formato:
             {
-                "extracted_name": "Nombre completo",
-                "extracted_address": "Dirección completa",
+                "extracted_name": "Nombre",
+                "extracted_address": "Dirección",
                 "extracted_date": "YYYY-MM-DD"
             }
             """
 
-            # 2. Llamada a la IA
             result = client.models.generate_content(
                 model=MODEL_NAME,
                 contents=[
-                    prompt,
-                    {
-                        "mime_type": response.headers.get('Content-Type', 'application/pdf'),
-                        "data": response.content
-                    }
-                ],
-                config={"response_mime_type": "application/json"}
+                    types.Part.from_text(text=prompt),
+                    types.Part.from_bytes(
+                        data=response.content,
+                        mime_type="image/jpeg"
+                    )
+                ]
             )
 
-            return json.loads(result.text)
+            if not result or not result.text:
+                raise ValueError("La IA no devolvió texto.")
 
-        except errors.ClientError as e:
-            if "429" in str(e):
-                logger.error("Error 429: Cuota excedida temporalmente.")
-                return {"error": "Servicio de IA saturado, intente en 30 segundos."}
-            raise e
+            # LIMPIEZA ROBUSTA: Quitamos marcas de Markdown si existen
+            raw_text = result.text.strip()
+            if raw_text.startswith("```"):
+                # Elimina ```json al inicio y ``` al final
+                raw_text = raw_text.split("```")
+                # Buscamos la parte que parece JSON (usualmente la segunda tras el split)
+                for part in raw_text:
+                    if "{" in part:
+                        raw_text = part.replace("json", "").strip()
+                        break
+
+            return json.loads(raw_text)
+
         except Exception as e:
-            logger.error(f"Error inesperado en extracción: {str(e)}")
-            return {"error": str(e)}
+            logger.error(f"Error en extracción: {str(e)}")
+            # Devolvemos un diccionario para evitar que la vista explote al intentar leerlo
+            return {
+                "error": "No se pudo procesar el documento",
+                "details": str(e)
+            }
