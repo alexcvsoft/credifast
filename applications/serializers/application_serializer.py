@@ -17,6 +17,8 @@ class ApplicationSerializer(serializers.ModelSerializer):
             "bank_history_months",
             "credit_score",
             "created_at",
+            "address_proof",
+            "decision"
         ]
 
         read_only_fields = ["id", "created_at"]
