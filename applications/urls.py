@@ -1,5 +1,5 @@
 from django.urls import path
-from applications.views.application_views import CreateApplicationView
+from applications.views.application_views import CreateApplicationView, GetApplicationView
 
 
 urlpatterns = [
@@ -9,5 +9,9 @@ urlpatterns = [
         CreateApplicationView.as_view(),
         name="create-application"
     ),
-
+    path(
+        "applications/<uuid:application_id>",
+        GetApplicationView.as_view(),
+        name="get-application"
+    ),
 ]
