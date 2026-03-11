@@ -24,5 +24,124 @@ flowchart TB
     style RulesEngine fill:#f1c40f,color:black
     style DocumentAI fill:#f1c40f,color:black
 ```    
+**Decisiones de diseño:**
+
+- Separamos la lógica de aplicación (AppService) y la de documentos (DocService) para aislar responsabilidades.
+
+- El Decision Engine centraliza la evaluación de reglas y decisiones de crédito.
+
+- Los servicios de apoyo (ScoreService, RulesEngine, DocumentAI) mantienen la lógica especializada fuera del core de la API.
+
+- La BD relacional (PostgreSQL) almacena aplicaciones, documentos, decisiones y logs de reglas para trazabilidad.
 
 ## 2. Diagrama ER (Modelo de Datos)
+```mermaid
+erDiagram
+APPLICATION {
+    uuid id PK
+    string full_name
+    int age
+    boolean is_married
+    boolean has_children
+    decimal monthly_income
+    string declared_address
+    int bank_history_months
+    int credit_score
+    datetime created_at
+}
+
+ADDRESS_PROOF {
+    uuid id PK
+    uuid application_id FK
+    string file_url
+    string extracted_name
+    string extracted_address
+    date extracted_date
+}
+
+DECISION {
+    uuid id PK
+    uuid application_id FK
+    boolean approved
+    string reason
+    datetime evaluated_at
+}
+
+RULE_LOG {
+    uuid id PK
+    uuid decision_id FK
+    string rule_name
+    boolean passed
+    string message
+}
+
+APPLICATION ||--|| ADDRESS_PROOF : includes
+APPLICATION ||--|| DECISION : generates
+DECISION ||--o{ RULE_LOG : produces
+```
+**Decisiones de diseño:**
+
+- Cada APPLICATION puede tener un comprobante de domicilio y una decisión asociada.
+
+- RULE_LOG permite auditar qué reglas se evaluaron y cuáles pasaron/fallaron.
+
+- La normalización evita datos duplicados y asegura consistencia entre aplicaciones, documentos y decisiones.
+
+## 3. Diagrama de Flujo (Proceso de Aplicación)
+```mermaid
+flowchart TD
+Start([Start])
+
+CreateApp[Create Application]
+SaveApp[(Insert APPLICATION)]
+
+GetScore[Call Credit Score Service]
+UpdateScore[(Update APPLICATION.credit_score)]
+
+UploadDoc[Upload Address Proof]
+SaveDoc[(Insert ADDRESS_PROOF)]
+
+ProcessDoc[Document AI Extraction]
+UpdateDoc[(Update extracted fields)]
+
+EvaluateRules[Evaluate Rules Engine]
+
+Decision{All rules pass?}
+
+Approve[Create DECISION: approved]
+Reject[Create DECISION: rejected]
+
+LogRules[(Insert RULE_LOG records)]
+
+End([End])
+
+Start --> CreateApp
+CreateApp --> SaveApp
+SaveApp --> GetScore
+GetScore --> UpdateScore
+UpdateScore --> UploadDoc
+UploadDoc --> SaveDoc
+SaveDoc --> ProcessDoc
+ProcessDoc --> UpdateDoc
+UpdateDoc --> EvaluateRules
+EvaluateRules --> Decision
+
+Decision -->|Yes| Approve
+Decision -->|No| Reject
+
+Approve --> LogRules
+Reject --> LogRules
+
+LogRules --> End
+```
+
+**Decisiones de diseño:**
+
+- Se prioriza el flujo síncrono de creación de aplicación y subida de documentos.
+
+- La integración con servicios externos (Credit Score y Document AI) ocurre después de almacenar los datos iniciales para asegurar persistencia.
+
+- Se mantiene un registro completo de reglas evaluadas para trazabilidad y auditoría.
+
+- La decisión final solo se genera cuando todas las reglas se evaluaron correctamente, asegurando consistencia y control de riesgos.
+
