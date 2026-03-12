@@ -5,6 +5,7 @@ from rest_framework.views import APIView
 
 from applications.models import Application
 from applications.serializers.application_serializer import ApplicationSerializer
+from applications.services.credit_score_service import CreditScoreService
 
 
 class CreateApplicationView(APIView):
@@ -14,8 +15,12 @@ class CreateApplicationView(APIView):
         serializer = ApplicationSerializer(data=request.data)
 
         if serializer.is_valid():
+            
+            credit_score = CreditScoreService.get_credit_score()
 
-            application = serializer.save()
+            application = serializer.save(
+                credit_score=credit_score
+            )
 
             return Response(
                 ApplicationSerializer(application).data,

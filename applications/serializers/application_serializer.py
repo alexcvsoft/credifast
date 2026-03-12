@@ -21,4 +21,10 @@ class ApplicationSerializer(serializers.ModelSerializer):
             "decision"
         ]
 
-        read_only_fields = ["id", "created_at"]
+        read_only_fields = [
+            "id", 
+            "created_at",
+            "credit_score",
+            "address_proof",
+            "decision"
+        ]
