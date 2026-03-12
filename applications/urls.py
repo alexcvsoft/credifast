@@ -1,6 +1,7 @@
 from django.urls import path
 from applications.views.application_views import CreateApplicationView, GetApplicationView
 from applications.views.document_views import UploadAddressProofView
+from applications.views.score_views import CreditScoreView
 
 
 urlpatterns = [
@@ -19,5 +20,10 @@ urlpatterns = [
         "applications/<uuid:application_id>/documents",
         UploadAddressProofView.as_view(),
         name="upload-document"
+    ),
+    path(
+        "scorecredito", 
+        CreditScoreView.as_view(),
+        name="credit-score"
     ),
 ]
