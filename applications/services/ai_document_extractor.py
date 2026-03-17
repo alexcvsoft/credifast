@@ -11,14 +11,13 @@ class AIDocumentExtractor:
     @staticmethod
     def extract_document_data(file_url: str) -> dict:
         client = genai.Client(api_key=settings.GEMINI_API_KEY)
-        # Usamos el modelo que confirmaste que funciona
         MODEL_NAME = "gemini-2.5-flash-lite"
 
         try:
             response = requests.get(file_url, timeout=15)
             response.raise_for_status()
             
-            # Reforzamos el prompt para que no use Markdown
+            # Prompt
             prompt = """
             Analiza esta imagen de un comprobante de domicilio.
             Extrae los datos y responde ÚNICAMENTE con el objeto JSON, sin bloques de código, sin ```json, sin texto adicional.
@@ -44,12 +43,12 @@ class AIDocumentExtractor:
             if not result or not result.text:
                 raise ValueError("La IA no devolvió texto.")
 
-            # LIMPIEZA ROBUSTA: Quitamos marcas de Markdown si existen
+            # Remove markdown characters
             raw_text = result.text.strip()
             if raw_text.startswith("```"):
-                # Elimina ```json al inicio y ``` al final
+                # Delete ```json at the beginning and ``` at the end
                 raw_text = raw_text.split("```")
-                # Buscamos la parte que parece JSON (usualmente la segunda tras el split)
+                # Look for the part that contains the JSON
                 for part in raw_text:
                     if "{" in part:
                         raw_text = part.replace("json", "").strip()
@@ -59,7 +58,6 @@ class AIDocumentExtractor:
 
         except Exception as e:
             logger.error(f"Error en extracción: {str(e)}")
-            # Devolvemos un diccionario para evitar que la vista explote al intentar leerlo
             return {
                 "error": "No se pudo procesar el documento",
                 "details": str(e)
